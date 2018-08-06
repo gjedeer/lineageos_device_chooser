@@ -3,6 +3,7 @@
 import glob
 import os
 import os.path
+import re
 import requests
 import yaml
 from bs4 import BeautifulSoup
@@ -37,6 +38,8 @@ def get_stats():
     return rv
 
 def get_devices():
+    width_re = re.compile(r'^([\d\.]+)\s*mm.*')
+
     rv = {}
     for filename in glob.iglob('lineage_wiki/_data/devices/*.yml'):
         data = yaml.load(open(filename))
@@ -44,6 +47,10 @@ def get_devices():
         ram_clean = ram_clean.split('/')[-1]
 	ram_b = human2bytes(ram_clean)
         data['ram_mb'] = ram_b/(1024*1024)
+        if 'width' in data and data['width']:
+            m = width_re.match(data['width'])
+            if m:
+                data['width_mm'] = float(m.group(1))
         rv[data['codename']] = data
 
     return rv
@@ -141,11 +148,14 @@ if __name__ == "__main__":
             continue
         if device['current_branch'] < 14:
             continue
-        if device['ram_mb'] < 2048:
-            continue
-        if not battery_removable(device):
+        if device['ram_mb'] < 3000:
             continue
         if len(device['maintainers']) == 0:
+            continue
+        if 'width_mm' not in device:
+            continue
+
+        if device['width_mm'] > 71:
             continue
 
         candidates.append(device)
